@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ thống cảnh báo cháy</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,7 +19,7 @@
             margin-top: 20px;
         }
         #fire-image {
-            display: none; /* Ẩn ảnh ban đầu */
+            display: none;
             max-width: 100%;
             border: 5px solid red;
         }
@@ -27,37 +29,132 @@
             font-weight: bold;
             display: none;
         }
+        #chart-container {
+            width: 60%; /* ✅ Thu nhỏ biểu đồ */
+            margin: 20px auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        canvas {
+            max-width: 100%;
+            height: 300px !important; /* ✅ Giới hạn chiều cao */
+        }
+        #toggle-chart-btn {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: red;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #toggle-chart-btn:hover {
+            background-color: darkred;
+        }
     </style>
 </head>
 <body>
-
     <h1>🔥 CẢNH BÁO CHÁY 🔥</h1>
     <div id="alert">ĐÃ PHÁT HIỆN CHÁY!</div>
-
     <div id="image-container">
         <img id="fire-image" src="" alt="Hình ảnh cảnh báo cháy">
     </div>
-
+    <button id="toggle-chart-btn">📊 Hiển thị biểu đồ</button>
+    <div id="chart-container">
+        <h2>📊 Biểu đồ trạng thái cháy</h2>
+        <canvas id="fireChart"></canvas>
+    </div>
     <script>
         function updateImage() {
             const img = document.getElementById('fire-image');
             const alertText = document.getElementById('alert');
-
-            img.src = "/esp_feed?" + new Date().getTime(); // Load ảnh mới từ Flask
-
+            img.src = "/esp_feed?" + new Date().getTime();
             img.onload = function () {
-                img.style.display = "block";  // Hiển thị ảnh nếu có cháy
+                img.style.display = "block";
                 alertText.style.display = "block";
             };
-
             img.onerror = function () {
-                img.style.display = "none";  // Ẩn ảnh nếu không có cháy
+                img.style.display = "none";
                 alertText.style.display = "none";
             };
         }
+        setInterval(updateImage, 2000);
 
-        setInterval(updateImage, 2000); // Cập nhật ảnh mỗi 2 giây
+        const ctx = document.getElementById('fireChart').getContext('2d');
+        let fireChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Trạng thái cháy (1: Có lửa, 0: Không có lửa)',
+                    data: [],
+                    borderColor: 'red',
+                    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+                    fill: true,
+                    tension: 0.2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'x', // ✅ Kéo ngang
+                        },
+                        zoom: {
+                            wheel: { enabled: true }, // ✅ Zoom bằng chuột
+                            pinch: { enabled: true }, // ✅ Zoom bằng cảm ứng
+                            mode: 'x', // ✅ Chỉ zoom ngang
+                        }
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: "Thời gian" } },
+                    y: { title: { display: true, text: "Trạng thái cháy" }, min: 0, max: 1 }
+                }
+            }
+        });
+
+        async function fetchChartData() {
+            try {
+                const response = await fetch('http://192.168.1.53:5000/get_chart_data'); // Đảm bảo API đúng
+                if (!response.ok) throw new Error('Lỗi khi tải dữ liệu');
+                const data = await response.json();
+
+                if (data.timestamps.length !== data.fire_status.length) {
+                    console.error("Dữ liệu timestamps và fire_status không khớp!");
+                    return;
+                }
+
+                // ✅ Đảm bảo dữ liệu sắp xếp theo thời gian tăng dần
+                data.timestamps.reverse();
+                data.fire_status.reverse();
+
+                fireChart.data.labels = data.timestamps.map(ts => ts.slice(11)); // HH:MM:SS
+                fireChart.data.datasets[0].data = data.fire_status;
+                fireChart.update();
+            } catch (error) {
+                console.error('Lỗi tải dữ liệu biểu đồ:', error);
+            }
+        }
+
+        fetchChartData();
+        setInterval(fetchChartData, 5000);
+
+        document.getElementById("toggle-chart-btn").addEventListener("click", function() {
+            let chartContainer = document.getElementById("chart-container");
+            if (chartContainer.style.display === "none") {
+                chartContainer.style.display = "block";
+                this.textContent = "📉 Ẩn biểu đồ";
+            } else {
+                chartContainer.style.display = "none";
+                this.textContent = "📊 Hiển thị biểu đồ";
+            }
+        });
     </script>
-
 </body>
 </html>
