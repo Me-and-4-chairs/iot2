@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống cảnh báo cháy</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: red;
+        }
+        #image-container {
+            margin-top: 20px;
+        }
+        #fire-image {
+            display: none; /* Ẩn ảnh ban đầu */
+            max-width: 100%;
+            border: 5px solid red;
+        }
+        #alert {
+            font-size: 20px;
+            color: red;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🔥 CẢNH BÁO CHÁY 🔥</h1>
+    <div id="alert">ĐÃ PHÁT HIỆN CHÁY!</div>
+
+    <div id="image-container">
+        <img id="fire-image" src="" alt="Hình ảnh cảnh báo cháy">
+    </div>
+
+    <script>
+        function updateImage() {
+            const img = document.getElementById('fire-image');
+            const alertText = document.getElementById('alert');
+
+            img.src = "/esp_feed?" + new Date().getTime(); // Load ảnh mới từ Flask
+
+            img.onload = function () {
+                img.style.display = "block";  // Hiển thị ảnh nếu có cháy
+                alertText.style.display = "block";
+            };
+
+            img.onerror = function () {
+                img.style.display = "none";  // Ẩn ảnh nếu không có cháy
+                alertText.style.display = "none";
+            };
+        }
+
+        setInterval(updateImage, 2000); // Cập nhật ảnh mỗi 2 giây
+    </script>
+
+</body>
+</html>
