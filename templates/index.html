@@ -121,7 +121,7 @@
 
         async function fetchChartData() {
             try {
-                const response = await fetch('http://192.168.1.53:5000/get_chart_data'); // Đảm bảo API đúng
+                const response = await fetch('http://192.168.1.13:5000/get_chart_data'); // Đảm bảo API đúng
                 if (!response.ok) throw new Error('Lỗi khi tải dữ liệu');
                 const data = await response.json();
 
